@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="X-Sim: Cross-Embodiment Learning via Real-to-Sim-to-Real">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>X-Sim: Cross-Embodiment Learning via Real-to-Sim-to-Real</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QR88D4MJ0H"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'G-QR88D4MJ0H');
+  </script>
+  <script type="text/javascript" async 
+    src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+  </script> 
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="./static/images/icon.jpg">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+<!-- <nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="https://keunhong.com">
+      <span class="icon">
+          <i class="fas fa-home"></i>
+      </span>
+      </a>
+
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          More Research
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="https://hypernerf.github.io">
+            HyperNeRF
+          </a>
+          <a class="navbar-item" href="https://nerfies.github.io">
+            Nerfies
+          </a>
+          <a class="navbar-item" href="https://latentfusion.github.io">
+            LatentFusion
+          </a>
+          <a class="navbar-item" href="https://photoshape.github.io">
+            PhotoShape
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</nav> -->
+
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">X-Sim: Cross-Embodiment Learning <br> via Real-to-Sim-to-Real</h1>
+          <!-- <h3 class="title is-4 conference-authors"><a target="_blank"
+            href="https://www.corl.org/">CoRL 2024</a></h3> -->
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://pdan101.github.io/">Prithwish Dan*</a>,</span>
+            <span class="author-block">
+              <a href="https://kushal2000.github.io">Kushal Kedia*</a>,</span>
+            <span class="author-block"> 
+                <a href="https://portal.cs.cornell.edu/people/">Angela Chao</a>,</span>
+            <span class="author-block">
+              <a href="https://portal.cs.cornell.edu/people/">Edward W. Duan</a>,</span>
+            <span class="author-block">
+                <a href="https://portal.cs.cornell.edu/people/">Maximus A. Pace</a>,</span>
+            <span class="author-block">
+              <a href="https://www.cs.cornell.edu/~weichiu/">Wei-Chiu Ma</a>,</span>
+            <span class="author-block">
+                <a href="https://www.sanjibanchoudhury.com/">Sanjiban Choudhury</a>            
+          </div>
+
+          <!-- write Cornell Univerity in red next line -->
+          <br>
+          <!-- <hr style="height:0px; visibility:hidden;" /> -->
+          <img src="./static/images/cornell-university-logo.png" width="40%"></img>
+          <!-- <div class="is-size-3 publication-authors">
+            <span class="author-block">Cornell University</span>
+          </div> -->
+
+          <div class="column has-text-centered">
+            
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <!-- <a href="https://arxiv.org/abs/2402.18796.pdf" -->
+                <a href=""
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper (Coming Soon)</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <!-- <a href="https://arxiv.org/abs/2402.18796" -->
+                <a href=""
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv (Coming Soon)</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://github.com/portal-cornell/X-Sim"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                </a>
+              </span>
+              <!-- twitter Link. -->
+              <!-- <span class="link-block">
+                <a href="https://twitter.com/sanjibac/status/1764670269526847517"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-x-twitter"></i>
+                  </span>
+                  <span>Summary</span>
+                </a>
+              </span> -->
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- reduce line spacing below -->
+
+
+
+<!-- Display a big video next -->
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-3" >
+            X-Sim learns robot actions from action-less human videos<br> using an object-centric reward in simulation.
+          </h1>
+          <div class="publication-video">
+              <!-- add a link to youtube video using iframe -->
+
+              <video poster="" id="shiba" controls playsinline>
+                <!-- <iframe width="420" height="240" src="https://www.youtube.com/embed/jKp-RqNlW90?si=I23I9oWz2yOCACWf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe> -->
+                <source src="./static/videos/xsim-frontcover.mp4" type="video/mp4">
+              </video> 
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero is-light is-small">
+  <div class="hero-body" has-text-centered>
+    <div class="container" >
+      <div class="column has-text-centered">
+        <h2 class="title is-3">X-Sim bridges the <u>embodiment gap</u> in simulation, increases <u>data efficiency</u>, and generates <u>diverse synthetic data</u>.</h2>
+        <br>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-steve">
+          <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/retargeting-2x-speed.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-chair-tp">
+          <video poster="" id="chair-tp" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/data-efficiency-2x-speed.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-shiba">
+          <video poster="" id="shiba" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/viewpoints.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-steve">
+          <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/retargeting-2x-speed.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-chair-tp">
+          <video poster="" id="chair-tp" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/data-efficiency-2x-speed.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-shiba">
+          <video poster="" id="shiba" autoplay controls muted loop playsinline height="100%">
+            <source src="./static/videos/viewpoints.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+      </div>
+      <br>
+      
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+          <p style="text-align: left;">
+            Human videos offer a scalable way to train robot manipulation policies, but lack the action labels needed by standard imitation learning algorithms. 
+            Existing cross-embodiment approaches try to map human motion to robot actions, but often fail when the embodiments differ significantly. 
+            We propose \( \texttt{X-Sim} \), a real-to-sim-to-real framework that uses object motion as a dense and transferable signal for learning robot policies. 
+            \( \texttt{X-Sim} \) starts by reconstructing a photorealistic simulation from an RGBD human video and tracking object trajectories to define object-centric rewards. 
+            These rewards are used to train a reinforcement learning (RL) policy in simulation. 
+            The learned policy is then distilled into an image-conditioned diffusion policy using synthetic rollouts rendered with varied viewpoints and lighting. 
+            To transfer to the real world, \( \texttt{X-Sim} \) introduces an online domain adaptation technique that aligns real and simulated observations during deployment. 
+            Importantly, \( \texttt{X-Sim} \) does not require any robot teleoperation data. 
+            We evaluate it across 5 manipulation tasks in 2 environments and show that it: (1) improves task progress by 30% on average over hand-tracking and sim-to-real baselines, (2) matches behavior cloning with 10x less data collection time, and (3) generalizes to new camera viewpoints and test-time changes.
+          </p>
+      </div>
+    </div>
+    <!-- Dataset -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column">
+        <h2 class="title is-3">X-Sim Overview</h2>
+        <!-- <div class="publication-video"> -->
+          
+          
+          <p style="text-align: left;">
+            We propose \( \texttt{X-Sim} \), a real-to-sim-to-real framework that uses object motion as a dense and transferable signal for learning robot policies.
+          </p>
+          <br>
+          <br>
+          <img src="./static/images/realtosim.png">
+          <br>
+          <br>
+          <p style="text-align: left;">
+            <b>(1) Real-to-Sim:</b> \( \texttt{X-Sim} \) first reconstructs a photorealistic simulation from an RGBD human video and tracks object trajectories to define object-centric rewards.
+            These rewards are used to train a reinforcement learning (RL) policy in simulation which learns to induce the same object motion as the human video.
+          </p>
+
+          <!-- <br> -->
+          <br>
+          <br>
+          <br>
+          <img src="./static/images/simtoreal.png" width="800px">
+          <br>
+          <br>
+          <p style="text-align: left;">
+            <b>(2) Sim-to-Real:</b> \( \texttt{X-Sim} \) trains an RL policy with privileged state, then rolls out the policy and renders the scene under varied robot poses, object states, viewpoints, and lighting conditions to collect a synthetic dataset of image-action pairs.
+            This visuomotor dataset is used to train a purely image-conditioned diffusion policy that can be deployed in the real world.
+          </p>
+
+          <!-- <br> -->
+          <br>
+          <br>
+          <br>
+          <img src="./static/images/autocalibration.png" width="800px">
+          <br>
+          <br>
+          <p style="text-align: left;">
+            <b>(3) Auto-Calibration:</b> To improve real-world transfer, \( \texttt{X-Sim} \) introduces an online domain adaptation technique that collects real image observations from closed-loop rollouts and automatically pairs them with simulated views of the same robot trajectories, which are used to minimize the sim-to-real visual gap.
+            Notably, this procedure does not require any robot teleoperation data.
+          </p>
+            
+        <!-- </div> -->
+      </div>
+    </div>
+    <br>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column">
+        <h2 class="title is-3">Results</h2>
+        <!-- <div class="publication-video"> -->
+          <!-- align left -->
+          
+          
+          
+          <!-- <img src="./static/images/hmf.png"> -->
+          <img src="./static/images/barplots.png" width="800px">
+          <br>
+          <br>
+          <img src="./static/images/hand_retargeting_failures.png" width="500px">
+          <br>
+          <!-- <br> -->
+          <p style="text-align: left;">
+            <b>Real-World Performance.</b> 
+            We report Avg. Task Progress on 5 tasks across 2 environments, and find that \( \texttt{X-Sim} \) both with and without calibration consistently outperforms hand-tracking baselines that attempt to retarget human hand motion. 
+            <br>
+            <br>
+
+            We additionally visualize the primary modes of failure for the hand-tracking baselines, which stem from the underlying theme that natural human execution is mismatched from that of robots.
+            (a) Hand Mask: Applies a black mask over the human hand in demonstration videos to train an image-conditioned behavior cloning policy. At inference time, the robot arm is similarly masked.
+            (b) Object-Aware IK: Extracts hand trajectories relative to nearby objects, and replays them by applying IK to move the robot end-effector along the same path.
+          </p>
+
+          <!-- <br> -->
+          <br>
+          <br>
+          <br>
+          <img src="./static/images/calibration.png" width="500px">
+          <br>
+          <!-- <br> -->
+          <p style="text-align: left;">
+            <b>Sim-to-Real Calibration.</b> 
+            \( \texttt{X-Sim} \) \((\texttt{Calibrated})\) aligns real and simulated observations online using closed-loop rollouts to overcome visual discrepancies that remain due to imperfections in 3D reconstruction and rendering.
+            \( \texttt{X-Sim} \) \((\texttt{Calibrated})\) better aligns image embeddings compared to \( \texttt{X-Sim} \), ensuring that the policy avoids overfitting to domain-specific attributes with its calibration loss while still encoding task relevant features with its action prediction loss.
+          </p>
+
+          <!-- <br> -->
+          <br>
+          <br>
+          <br>
+          <img src="./static/images/scaling.png" width="700px">
+          <br>
+          <!-- <br> -->
+          <p style="text-align: left;">
+            <b>Data Efficiency.</b> 
+            By using human videos and RL for robustness, \( \texttt{X-Sim} \) is more data efficient than behavior cloning from robot teleoperation, achieving comparable success on a more challenging variant of Mustard Place with 10x less time.
+            Each human video takes 20 seconds of effort, while each robot demonstration takes 1 minute to collect.
+          </p>
+
+          <!-- <br> -->
+          <br>
+          <br>
+          <br>
+          <img src="./static/images/viewpoints.png" width="600px">
+          <br>
+          <!-- <br> -->
+          <p style="text-align: left;">
+            <b>Test-time Robustness.</b> 
+            We show that we can flexibly collect image-action data in simulation from multiple viewpoints (Side and Frontal) with \( \texttt{X-Sim} \) and train robust policies that improve performance on seen viewpoints and also generalize to novel viewpoints.
+          </p>
+            
+        <!-- </div> -->
+      </div>
+    </div>
+    
+
+    <!-- <br> -->
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column" id="Paper">
+        <h2 class="title is-3">Paper</h2>
+    <div class="paper-thumbnail">
+        <a href="">
+            <img class="layered-paper-big" width="100%" src="./static/images/xsim-coverphoto.png" alt="Paper thumbnail"/>
+        </a>
+    </div>
+    <div class="paper-info">
+        <!-- <a href="https://openreview.net/forum?id=rxlokRzNWRq"><h3>ManiCast: Collaborative Manipulation with Cost-Aware Human Forecasting</h3></a>
+        <p>Kushal Kedia, Prithwish Dan, Atiksh Bhardwaj, Sanjiban Choudhury</p> -->
+        <h3 class="title is-4" style="text-align: center;">BibTex</h3>
+<pre style="overflow-x:hidden; text-wrap:wrap; white-space: pre-wrap;"><code>@misc{
+  Coming soon...
+}   
+</code></pre> 
+    </div>
+    </div>
+</div>
+</section>
+
+<br>
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>
+            Website template borrowed from <a
+              href="https://github.com/nerfies/nerfies.github.io">NeRFies</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

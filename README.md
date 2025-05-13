@@ -5,14 +5,22 @@
 
 
 
-[Project Page](https://portal-cornell.github.io/x-sim/) | Link to Paper (Coming Soon)
+[Project Page](https://portal-cornell.github.io/X-Sim/) | Link to Paper (Coming Soon)
 
 
 Code coming soon.
 
 ### BibTeX
    ```bash
-   @article{
-      Coming soon...
+   @misc{
+      dan2025xsimcrossembodimentlearningrealtosimtoreal,
+            title={X-Sim: Cross-Embodiment Learning via Real-to-Sim-to-Real}, 
+            author={Prithwish Dan and Kushal Kedia and Angela Chao and Edward Weiyi Duan and Maximus Adrian Pace and Wei-Chiu Ma and Sanjiban Choudhury},
+            year={2025},
+            eprint={2505.07096},
+            archivePrefix={arXiv},
+            primaryClass={cs.RO},
+            url={https://arxiv.org/abs/2505.07096}, 
+      }
    }
    ``` 

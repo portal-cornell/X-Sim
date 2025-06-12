@@ -1,5 +1,5 @@
 <div align="center">
-  <h1><b> X-Sim: Cross-Embodiment Learning via Real-to-Sim-to-Real </b></h1>
+  <h1><b> X-Sim: Cross-Embodiment Learning <br>via Real-to-Sim-to-Real </b></h1>
 </div>
 
 <div align="center">

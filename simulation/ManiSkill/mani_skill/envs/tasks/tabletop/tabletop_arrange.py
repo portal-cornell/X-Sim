@@ -1,0 +1,670 @@
+from typing import Any, Dict, Union, List
+
+import numpy as np
+import sapien
+import torch
+from sapien.physx import PhysxMaterial
+import mani_skill.envs.utils.randomization as randomization
+from mani_skill.agents.robots import Fetch, Panda
+from mani_skill.envs.sapien_env import BaseEnv
+from mani_skill.sensors.camera import CameraConfig
+from mani_skill.utils import sapien_utils
+from mani_skill.utils.building import actors
+from mani_skill.utils.registration import register_env
+from mani_skill.utils.scene_builder.table import TableSceneBuilder
+from mani_skill.utils.structs.pose import Pose
+from mani_skill.utils.structs.types import GPUMemoryConfig, SimConfig
+from mani_skill.utils.geometry.rotation_conversions import quaternion_angle, axis_angle_to_quaternion
+from mani_skill.utils.building.ground import build_ground
+from mani_skill import PACKAGE_ASSET_DIR
+import transforms3d
+from scipy.spatial.transform import Rotation as R
+
+
+
+@register_env("Tabletop-Arrange", max_episode_steps=100)
+class TabletopArrangeEnv(BaseEnv):
+    _sample_video_link = "https://github.com/haosulab/ManiSkill/raw/main/figures/environment_demos/PickCube-v1_rt.mp4"
+    SUPPORTED_ROBOTS = ["panda", "panda_ninja", "fetch"]
+    agent: Union[Panda, Fetch]
+    cube_half_size = 0.025
+    goal_thresh = 0.01
+    angle_goal_thresh = 0.05
+    obj_static_friction = 0.5
+    obj_dynamic_friction = 0.5
+
+    def __init__(
+        self,
+        *args,
+        robot_uids="panda_ninja",
+        robot_init_qpos_noise=0.02,
+        randomize_init_config=False,
+        obj_noise=0.0,
+        obj_names=['LetterA', 'LetterI'],  
+        demo_name='AI-correct',
+        num_waypoints=2,
+        visualize=False,
+        rotation_reward=True,
+        require_grasp=True,
+        **kwargs,
+    ):
+        self.robot_init_qpos_noise = robot_init_qpos_noise
+        self.randomize_init_config = randomize_init_config
+
+        self.obj_noise = obj_noise
+        self.obj_names = obj_names if isinstance(obj_names, list) else [obj_names]  # Ensure it's a list
+        self.obj_files = [f"{PACKAGE_ASSET_DIR}/portal_lab/tabletop/{obj_name}/mesh/{obj_name}.obj" 
+                        for obj_name in self.obj_names]
+
+        self.kitchen_file = f"{PACKAGE_ASSET_DIR}/portal_lab/tabletop/tabletop.obj"
+        self.kitchen_to_robot_transform = torch.tensor([0.2060+0.012, 0.7336, 0.3448 - 0.01])
+
+        self.visualize = visualize
+        self.rotation_reward = rotation_reward
+
+        self.demo_name = demo_name
+        # We'll have a demo path for each object
+        self.demo_paths = [f"{PACKAGE_ASSET_DIR}/portal_lab/tabletop/{obj_name}/demos/{self.demo_name}.npy"
+                          for obj_name in self.obj_names]
+
+        self.robot_qpos = [0.0277, -0.3296, -0.0212, -1.9113,  0.0202,  1.6271,  0.7811, 0.04, 0.04]
+        # self.robot_qpos = [2.1707e-02,  7.5560e-01, -1.2151e-03, -8.1358e-01,  1.8144e-03, 2.0897e+00,  8.4658e-01, 0.04, 0.04]
+        
+        # self.start_idx = 28  # index of the first waypoint we want to compute reward w.r.t.
+        # self.end_idx = 51  # index of the goal destination
+        self.start_idx = 14
+        self.end_idx = 58
+        self.num_waypoints = num_waypoints  # num waypoints, including goal (set to 1 for goal-conditioned)
+        self.require_grasp = require_grasp
+
+        
+        super().__init__(*args, robot_uids=robot_uids, **kwargs)
+
+    @property
+    def _default_sensor_configs(self):
+        pose = sapien_utils.look_at(eye=[0.3, 0, 0.6], target=[-0.1, 0, 0.1])
+        return [CameraConfig(
+            uid="base_camera", 
+            pose=pose, 
+            width=128, 
+            height=128, 
+            # fov=np.pi / 2,
+            near=0.01, 
+            far=100, 
+            intrinsic=[
+                [5.331700e+02, 0.000000e+00, 4.862300e+02],
+                [0.000000e+00, 5.331000e+02, 2.614790e+02],
+                [0.000000e+00, 0.000000e+00, 1.000000e+00],
+            ]
+            )
+        ]
+
+    @property
+    def _default_human_render_camera_configs(self):
+        # pose_new = sapien_utils.look_at([0.95304242 - 0.15, -0.07714972 + 0.1 - 0.5,  0.97090369 - 0.4], 
+        #                             [0.49877198, 0.09168973, 0.09618567])
+        # pose_new = sapien_utils.look_at([0.95304242, -0.07714972 + 0.1,  0.97090369], 
+        #                             [0.49877198, 0.09168973, 0.09618567])
+        # pose_new = sapien_utils.look_at([0.2060 + 0.35, -0.7336, 0.3448 + 0.245], 
+        #                             [0.2060 + 0.35, 0.7336, 0.3448 + 0.045])        
+        pose_new = sapien_utils.look_at([1.10358784, -0.09247672,  0.92705452], 
+                                    [0.53148106, 0.06763309, 0.19122654])
+        return CameraConfig(
+            uid="render_camera",  
+            pose=pose_new, 
+            width=960, 
+            height=540, 
+            # fov=1,  
+            near=0.01, 
+            far=100, 
+            intrinsic=[
+                [5.331700e+02, 0.000000e+00, 4.862300e+02],
+                [0.000000e+00, 5.331000e+02, 2.614790e+02],
+                [0.000000e+00, 0.000000e+00, 1.000000e+00],
+            ],
+        )
+    
+    @property
+    def _default_sim_config(self):
+        return SimConfig(
+            spacing=5,
+            gpu_memory_config=GPUMemoryConfig(
+                max_rigid_contact_count=2**23, max_rigid_patch_count=2**22
+            ),
+            sim_freq=100,
+            control_freq=5,
+        )
+
+    def _load_agent(self, options: dict):
+        super()._load_agent(options, sapien.Pose(p=[0, 0, 0.0]))
+
+    def _load_kitchen(self, scene):
+        builder = scene.create_actor_builder()
+        density = 1000
+        builder.add_multiple_convex_collisions_from_file(
+            filename=self.kitchen_file,
+            material = None,
+            density=density,
+            decomposition="coacd",
+            decomposition_params={
+                "threshold": 0.01,
+                "preprocess_resolution": 50,
+                "mcts_nodes": 25,
+                "mcts_iterations": 200,
+                "mcts_max_depth": 4,
+                },
+        )
+        
+        builder.add_visual_from_file(
+            filename=self.kitchen_file,
+        )
+        builder.initial_pose = sapien.Pose()
+        mesh = builder.build_kinematic(name="kitchen")
+        
+        return mesh
+
+    def load_obj(self, scene, obj_file, name="obj", kinematic=False):
+        builder = scene.create_actor_builder()
+        density = 1000
+        if not kinematic:
+            builder.add_multiple_convex_collisions_from_file(
+                filename=obj_file,
+                material=None,
+                density=density,
+                decomposition="coacd",
+                # decomposition_params={
+                #     "threshold": 0.01,
+                # }
+            )
+        builder.add_visual_from_file(filename=obj_file)
+        builder.initial_pose = sapien.Pose()
+        if kinematic:
+            obj = builder.build_kinematic(name=name)
+        else:
+            obj = builder.build(name=name)
+        return obj
+    
+    def _load_scene(self, options: dict):
+        self.ground = build_ground(self.scene, altitude=-0.7, ground_color=[0.5,0.5,0.5,1])
+        self.kitchen_mesh = self._load_kitchen(self.scene)
+        
+        # Load all objects and their demo data
+        self.interval = (self.end_idx - self.start_idx) // self.num_waypoints
+        self.poses = []
+        self.waypoints = []
+        self.waypoint_dist_reward_scaling = []
+        self.waypoint_angle_reward_scaling = []
+        self.start_poses = []
+        self.goal_poses = []
+        self.obj_meshes = []
+        self.goal_sites = []
+        for i, obj_name in enumerate(self.obj_names):
+            obj_file = self.obj_files[i]
+            demo_path = self.demo_paths[i]
+            # Load the object mesh
+
+            obj_mesh = self.load_obj(self.scene, obj_file, name=obj_name)
+            self.obj_meshes.append(obj_mesh)
+            
+            # Load the demo data
+            pose_data = torch.tensor(np.load(demo_path)).float().to(self.device)[i]  # Assumes just 1 object at index 0
+            self.poses.append(pose_data)
+            
+            # Select waypoints for this object
+            obj_waypoints = []
+            obj_waypoints.append(pose_data[0])
+            for j in range(self.start_idx, self.end_idx - self.interval, self.interval):
+                obj_waypoints.append(pose_data[j])
+            obj_waypoints.append(pose_data[self.end_idx])
+            
+            # Calculate distance reward scaling for this object
+            obj_scaling = torch.tensor([
+                1 / torch.norm(obj_waypoints[j][:3] - obj_waypoints[j+1][:3], p=2).item()
+                for j in range(len(obj_waypoints) - 1)
+            ]).to(self.device)
+            self.waypoint_dist_reward_scaling.append(obj_scaling)
+
+            
+            # Calculate angular differences between consecutive waypoints
+            obj_angle_scaling = torch.tensor([
+                1 / (torch.abs(quaternion_angle(self._zero_xy(obj_waypoints[j][3:]), 
+                                            self._zero_xy(obj_waypoints[j+1][3:]))).item() + 1e-6)
+                for j in range(len(obj_waypoints) - 1)
+            ]).to(self.device)
+            # Handle case where consecutive rotations are identical (angle = 0)
+            obj_angle_scaling = torch.clamp(obj_angle_scaling, max=10.0)  # Prevent extremely large values
+            self.waypoint_angle_reward_scaling.append(obj_angle_scaling)
+            
+            # Remove the first waypoint (starting position)
+            obj_waypoints.pop(0)
+            self.waypoints.append(obj_waypoints)
+            
+            # Store start and goal poses
+            self.start_poses.append(pose_data[0])
+            self.goal_poses.append(pose_data[-1])
+            
+            # Set the rotation of all waypoints and goal to match the start pose
+            # for j in range(len(obj_waypoints)):
+            #     obj_waypoints[j][3:] = pose_data[0][3:7]  # Set rotation to start pose rotation
+        
+        # Initialize visualization sites for waypoints if needed
+        if self.visualize:
+            self.waypoint_sites = []
+            for i, obj_waypoints in enumerate(self.waypoints):
+                obj_sites = []
+                for j, waypoint in enumerate(obj_waypoints):
+                    site_name = f"{self.obj_names[i]}_waypoint_{j}"
+                    waypoint_site = self.load_obj(self.scene, self.obj_files[i], name=site_name, kinematic=True)
+                    waypoint_site.set_pose(Pose.create_from_pq(p=waypoint[:3], q=waypoint[3:]))
+                    obj_sites.append(waypoint_site)
+                self.waypoint_sites.append(obj_sites)
+        
+        # Initialize tracking variables
+        num_objects = len(self.obj_names)
+        self.goal_quat = torch.zeros((self.num_envs, num_objects, 4), device=self.device)
+        for i in range(num_objects):
+            self.goal_quat[:, i] = self.start_poses[i][3:7]  # Set goal rotation to start pose rotation
+        
+        self.current_subgoal_idx = torch.zeros((self.num_envs,), dtype=torch.int32, device=self.device)
+        self.current_obj_to_manip_idx = torch.zeros((self.num_envs,), dtype=torch.int32, device=self.device)
+        
+        self.goal_xyz = torch.zeros((self.num_envs, num_objects, 3), device=self.device)
+        for i in range(num_objects):
+            self.goal_xyz[:, i, :3] = self.goal_poses[i][:3]
+        
+        # Create goal visualization sites
+        for i, obj_name in enumerate(self.obj_names):
+            goal_site = actors.build_cube(
+                self.scene,
+                half_size=self.cube_half_size / 2,
+                color=[0, 1, 0, 0.5],
+                name=f"{obj_name}_goal_site",
+                body_type="kinematic",
+                add_collision=False,
+                initial_pose=sapien.Pose(),
+            )
+            self._hidden_objects.append(goal_site)
+            self.goal_sites.append(goal_site)
+        
+        # TCP visualization site
+        self.tcp_site = actors.build_cube(
+            self.scene,
+            half_size=0.01,
+            color=[1, 1, 0, 1],
+            name="tcp_pose",
+            body_type="kinematic",
+            add_collision=False,
+            initial_pose=sapien.Pose(),
+        )
+        self._hidden_objects.append(self.tcp_site)
+        
+        # Calculate interval (should be the same for all objects)
+        self.interval = (self.end_idx - self.start_idx) // self.num_waypoints
+
+    def _initialize_episode(self, env_idx: torch.Tensor, options: dict):
+        with torch.device(self.device):
+            b = len(env_idx)
+            
+            # Set up kitchen position
+            kitchen_xyz = torch.zeros((b, 3))
+            kitchen_xyz[:, :3] = self.kitchen_to_robot_transform
+            
+            # # Apply randomization to z-coordinate if needed
+            # z_random = torch.zeros((b, 1))
+            # if self.randomize_init_config:
+            #     z_random = torch.rand((b, 1)) * 0.03 - 0.015
+            #     kitchen_xyz[:, 2:3] += z_random
+            
+            # Set kitchen pose
+            kitchen_rot = transforms3d.quaternions.axangle2quat(
+                np.array([1, 0, 0]), theta=np.deg2rad(90)
+            )
+            self.kitchen_mesh.set_pose(Pose.create_from_pq(p=kitchen_xyz, q=kitchen_rot))
+            
+            # Initialize each object
+            for i, obj_mesh in enumerate(self.obj_meshes):
+                # Set initial position
+                xyz = torch.zeros((b, 3))
+                xyz[:, :3] = self.start_poses[i][:3]
+                
+                # Apply randomization if needed
+                if self.randomize_init_config and i == 1:
+                    xyz[:, :2] += torch.rand((b, 2)) * 0.05 - 0.025
+                #     xyz[:, 2:3] += z_random  # Apply same z-random as kitchen
+                
+                # Set initial rotation
+                quat = torch.zeros((b, 4))
+                quat[:, ] = self.start_poses[i][3:7]
+                qs = torch.zeros((b, 4))
+                qs[:, 0] = 1
+                
+                if self.randomize_init_config and i == 1:
+                    qs = randomization.random_quaternions(b, lock_x=True, lock_y=True, bounds=(0, np.pi/9))
+                
+                fixed_rot = Pose.create_from_pq(q=qs) * Pose.create_from_pq(q=quat)
+                
+                # Set object pose
+                obj_mesh.set_pose(Pose.create_from_pq(p=xyz, q=fixed_rot.q))
+                
+                # Update goal position with randomization if needed
+                # self.goal_xyz[env_idx, i, :3] = self.goal_poses[i][:3]
+                # if self.randomize_init_config:
+                #     self.goal_xyz[env_idx, i, 2:3] += z_random
+                
+                # Update goal quaternion
+                self.goal_quat[env_idx, i] = self.goal_poses[i][3:7]
+                
+                # Update visualization if needed
+                if self.visualize:
+                    self.goal_sites[i].set_pose(Pose.create_from_pq(
+                        p=self.goal_xyz[env_idx, i, :3], 
+                        q=self.goal_quat[env_idx, i]
+                    ))
+                    
+                    # Update waypoint visualizations
+                    for j, waypoint in enumerate(self.waypoints[i]):
+                        wp_xyz = waypoint[:3].clone()
+                        wp_quat = waypoint[3:].clone()
+                        # Apply same z-randomization as objects if needed
+                        # if self.randomize_init_config:
+                        #     wp_xyz[2:3] += z_random[0, 0]
+                        self.waypoint_sites[i][j].set_pose(Pose.create_from_pq(p=wp_xyz, q=wp_quat))
+            
+            # Reset subgoal tracking indices
+            self.current_subgoal_idx[env_idx] = 0
+
+            # HARD CODED TO OBJ AT INDEX 1
+            self.current_obj_to_manip_idx[env_idx] = 1
+            
+            # Set robot initial configuration
+            qpos = np.array(
+                self.robot_qpos
+            )
+            if self._enhanced_determinism:
+                qpos = (
+                    self._batched_episode_rng[env_idx].normal(
+                        0, self.robot_init_qpos_noise, len(qpos)
+                    )
+                    + qpos
+                )
+            else:
+                qpos = (
+                    self._episode_rng.normal(
+                        0, self.robot_init_qpos_noise, (b, len(qpos))
+                    )
+                    + qpos
+                )
+            qpos[:, -2:] = 0.04
+            self.agent.reset(qpos)
+            self.agent.robot.set_pose(sapien.Pose(p=[0, 0, 0.0]))
+    
+    def _get_obs_agent(self):
+        return dict()
+    
+    def _get_obs_extra(self, info: Dict):
+        obs = {
+            "ee_pose": self.agent.tcp.pose.raw_pose,
+            "gripper_width": self.agent.robot.get_qpos()[:, -1:],
+        }
+        
+        if "state" in self.obs_mode:
+            obj_poses_list = []
+            desired_goals_list = []
+            goal_distances_list = []  # New list for position differences
+            goal_angle_diffs_list = []  # New list for rotation differences
+            
+            for i, obj_mesh in enumerate(self.obj_meshes):
+                # Current object pose
+                obj_obs = obj_mesh.pose.raw_pose
+                obj_noise = torch.rand_like(obj_obs) * (self.obj_noise * 2) - self.obj_noise
+                obj_poses = obj_obs + obj_noise
+                obj_poses[:, 3:7] = self._zero_xy(obj_poses[:, 3:7])
+                obj_poses_list.append(obj_poses)
+
+                # Current desired waypoint pose for this object
+                waypoints_obj_tensor = torch.stack(self.waypoints[i])  # (num_waypoints, 7)
+                indices_obj = self.current_subgoal_idx  # (num_envs,)
+                desired_goal_obj = waypoints_obj_tensor[indices_obj]  # (num_envs, 7)
+                desired_goal_obj[:, 3:7] = self._zero_xy(desired_goal_obj[:, 3:7])
+                desired_goals_list.append(desired_goal_obj)
+
+                # Compute position difference (XY distance)
+                pos_diff = desired_goal_obj[:, :2] - obj_poses[:, :2]  # (num_envs, 2)
+                goal_distances_list.append(pos_diff)
+                
+                # Compute rotation difference (angle between quaternions)
+                # Only considering Z-axis rotation as in your _zero_xy function
+                angle_diff = torch.abs(quaternion_angle(
+                    self._zero_xy(desired_goal_obj[:, 3:7]), 
+                    self._zero_xy(obj_poses[:, 3:7])
+                )).unsqueeze(-1)  # (num_envs, 1)
+                goal_angle_diffs_list.append(angle_diff)
+            
+            # Concatenate all object poses and goals
+            obj_poses_concat = torch.cat(obj_poses_list, dim=1)  # (num_envs, num_objects * 7)
+            desired_goals_concat = torch.cat(desired_goals_list, dim=1)  # (num_envs, num_objects * 7)
+            
+            # Concatenate all position and rotation differences
+            goal_distances_concat = torch.cat(goal_distances_list, dim=1)  # (num_envs, num_objects * 3)
+            goal_angle_diffs_concat = torch.cat(goal_angle_diffs_list, dim=1)  # (num_envs, num_objects * 1)
+            
+            obs.update(
+                achieved_goal=obj_poses_concat,
+                desired_goal=desired_goals_concat,
+                goal_position_diff=goal_distances_concat,  # New observation
+                goal_rotation_diff=goal_angle_diffs_concat,  # New observation
+            )
+
+        obs["all_obj_placed"] = info["all_obj_placed"]
+        obs["all_obj_rotated"] = info["all_obj_rotated"]
+        obs["is_robot_static"] = info["is_robot_static"]
+
+        # if self.require_grasp:
+        #     obs['is_grasped'] = info['is_grasped'][torch.arange(self.num_envs, device=self.device), self.current_obj_to_manip_idx]
+
+        return obs
+
+    def _zero_xy(self, quat):
+        # Normalize the quaternion
+        norm = torch.norm(quat, dim=-1, keepdim=True)
+        quat_normalized = quat / norm  # Avoid division by zero
+        
+        # Extract w and z components
+        w = quat_normalized[..., 0:1]
+        z = quat_normalized[..., 3:4]
+        
+        # Calculate the length of the w-z part
+        len_wz = torch.sqrt(w*w + z*z)
+        
+        # Create a new quaternion with only w and z components
+        result = torch.zeros_like(quat)
+        result[..., 0:1] = w / len_wz  # w
+        result[..., 3:4] = z / len_wz  # z
+        
+        return result
+            
+        
+    
+    def evaluate(self):
+        """Evaluates the current state of the environment to determine task completion.
+        
+        This method checks if all objects are placed at their goal positions and the robot is static.
+        
+        Returns:
+            dict: A dictionary containing boolean values for:
+                - success: True if all conditions are met for all objects
+                - is_obj_placed: Boolean tensor indicating if each object is at its goal
+                - is_robot_static: True if robot is not moving
+                - is_grasped: Boolean tensor indicating if each object is grasped
+        """
+        num_objects = len(self.obj_meshes)
+        # Check if objects are at their goal positions
+        is_obj_placed = torch.zeros((self.num_envs, num_objects), dtype=torch.bool, device=self.device)
+        is_obj_rotated = torch.zeros((self.num_envs, num_objects), dtype=torch.bool, device=self.device)
+        is_grasped = torch.zeros((self.num_envs, num_objects), dtype=torch.bool, device=self.device)
+        
+        for i, obj_mesh in enumerate(self.obj_meshes):
+            # Check if this object is at its goal position ONLY CHECK XY POSITION
+            is_obj_placed[:, i] = (
+                torch.linalg.norm(self.goal_xyz[:, i, :2] - obj_mesh.pose.p[:, :2], axis=1)
+                <= self.goal_thresh
+            )
+            
+            is_obj_rotated[:, i] = (
+                torch.abs(quaternion_angle(self._zero_xy(self.goal_quat[:, i]), self._zero_xy(obj_mesh.pose.q)))
+                    <= self.angle_goal_thresh
+                ) 
+        
+            # is_obj_rotated[:, i] = (
+            #     torch.abs(quaternion_angle(self.goal_quat[:, i], obj_mesh.pose.q))
+            #         <= self.angle_goal_thresh
+            #     ) 
+            
+            # Check if this object is being grasped
+            is_grasped[:, i] = self.agent.is_grasping(obj_mesh)
+        
+        # Visualize TCP if needed
+        if self.visualize:
+            self.tcp_site.set_pose(self.agent.tcp.pose)
+        
+        # Check if robot is static
+        is_robot_static = self.agent.is_static(0.1)
+        
+        # Success requires all objects to be placed and robot to be static
+        all_objects_placed = torch.all(is_obj_placed, dim=1)
+        all_objects_rotated = torch.all(is_obj_rotated, dim=1)
+        
+        return {
+            "success": all_objects_placed & all_objects_rotated & is_robot_static,
+            "all_obj_placed": all_objects_placed,
+            "all_obj_rotated": all_objects_rotated,
+            "is_robot_static": is_robot_static,
+            "is_grasped": is_grasped,
+        }
+    
+    def step(self, action):
+        action[..., -1] = torch.clamp(action[..., -1], min=0.3)
+        obs, reward, terminated, truncated, info = super().step(action)
+        return obs, reward, terminated, truncated, info
+    
+    def compute_dense_reward(self, obs: Any, action: torch.Tensor, info: Dict):
+        """
+        This reward function is designed to encourage the robot to move objects towards their goal positions
+        while also tracking the waypoints along the way.
+
+        The reward function is composed of three main components:
+        1. Reaching reward - encourage moving TCP towards the closest object
+        2. Waypoint tracking rewards - encourage moving objects along their waypoints
+        3. Static reward - encourage being still when objects are at their goals
+        """
+        info['extra_data'] = {}
+        reward = torch.zeros(self.num_envs, device=self.device)
+        
+        # 1. Reaching reward - encourage moving TCP towards closest object
+        tcp_to_obj_dists = []
+        for obj_mesh in self.obj_meshes:
+            dist = torch.linalg.norm(
+                obj_mesh.pose.p - self.agent.tcp.pose.p, axis=1
+            )
+            tcp_to_obj_dists.append(dist)
+        
+        # Find the closest object to the TCP
+        tcp_to_obj_dists = torch.stack(tcp_to_obj_dists, dim=1)  # Shape: (num_envs, num_objects)
+        
+        # Select the relevant object distance for each environment
+        relevant_obj_dist = tcp_to_obj_dists[torch.arange(self.num_envs, device=self.device), self.current_obj_to_manip_idx]
+        
+        # Clamp the relevant object distance to be no less than 0.03
+        # relevant_obj_dist = torch.clamp(relevant_obj_dist, min=0.03)
+        
+        # Compute reaching reward based on distance to the relevant object
+        reaching_reward = 1 - torch.tanh(3 * relevant_obj_dist)
+        reaching_reward += 1 - torch.tanh(30 * relevant_obj_dist)  # fine-grained amount that only really applies when super close to object
+        reaching_reward /= 2
+        info['extra_data']['reaching_reward'] = reaching_reward
+        reward += reaching_reward
+        
+        if self.require_grasp:
+            reward += info['is_grasped'][torch.arange(self.num_envs, device=self.device), self.current_obj_to_manip_idx]
+        
+        all_obj_reached_waypoint = ~torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        # 2. Waypoint tracking rewards for each object
+        for i, obj_mesh in enumerate(self.obj_meshes):
+            # Calculate distances and angles to all waypoints for this object
+            waypoint_distances = torch.stack([
+                torch.linalg.norm(waypoint[:2] - obj_mesh.pose.p[:, :2], axis=1)
+                for waypoint in self.waypoints[i]
+            ], dim=1)
+            
+            waypoint_angles = torch.stack([
+                torch.abs(quaternion_angle(self._zero_xy(waypoint[3:]), self._zero_xy(obj_mesh.pose.q)))
+                for waypoint in self.waypoints[i]
+            ], dim=1)
+
+            # waypoint_angles = torch.stack([
+            #     torch.abs(quaternion_angle(waypoint[3:], obj_mesh.pose.q))
+            #     for waypoint in self.waypoints[i]
+            # ], dim=1)
+            
+            # Update progress through waypoints for this object
+            curr_idx_range = torch.arange(self.num_envs)
+            obj_current_idx = self.current_subgoal_idx
+            
+            reached_waypoint = waypoint_distances[curr_idx_range, obj_current_idx] < self.goal_thresh
+            if self.rotation_reward:
+                reached_waypoint &= (waypoint_angles[curr_idx_range, obj_current_idx] < self.angle_goal_thresh)
+            
+            all_obj_reached_waypoint &= reached_waypoint
+
+            # Compute waypoint reward based on current subgoal for this object
+            dist_to_current = waypoint_distances[curr_idx_range, obj_current_idx]
+            waypoint_reward = 1 - torch.tanh(
+                self.waypoint_dist_reward_scaling[i][obj_current_idx] * dist_to_current
+            )
+            
+            if self.rotation_reward:
+                angle_to_current = waypoint_angles[curr_idx_range, obj_current_idx]
+                angle_reward = 1 - torch.tanh(
+                    self.waypoint_angle_reward_scaling[i][obj_current_idx] * angle_to_current
+                )
+                waypoint_reward += angle_reward
+                # waypoint_reward += (1 - torch.tanh(angle_to_current))
+            
+            info['extra_data'][f'waypoint_reward_{i}'] = waypoint_reward
+            # if self.require_grasp:
+            #     reward += waypoint_reward * (self.current_obj_to_manip_idx != i | info['is_grasped'][torch.arange(self.num_envs, device=self.device), self.current_obj_to_manip_idx]) + obj_current_idx.float()
+            # else:
+            reward += waypoint_reward + obj_current_idx.float()
+
+
+        self.current_subgoal_idx = torch.clamp(
+                self.current_subgoal_idx + reached_waypoint, 
+                0, 
+                len(self.waypoints[0]) - 1
+            )
+        
+        # 3. Static reward - encourage being still when all objects are at their goals
+        static_reward = 1 - torch.tanh(
+            5 * torch.linalg.norm(self.agent.robot.get_qvel()[..., :-2], axis=1)
+        )
+        info['extra_data']['static_reward'] = static_reward
+        
+        # Add static reward based on how many objects are placed
+        all_placed = info["all_obj_placed"]
+        all_rotated = info["all_obj_rotated"]
+        reward += static_reward * all_placed * all_rotated
+        
+        # Large reward for success
+        reward[info["success"]] += 1
+        
+        return reward
+    
+    def compute_normalized_dense_reward(
+        self, obs: Any, action: torch.Tensor, info: Dict
+    ):
+        # Calculate normalization factor based on number of waypoints and objects
+        num_objects = len(self.obj_meshes)
+        total_waypoints = sum(len(wp) for wp in self.waypoints)
+        normalization_factor = 5 + total_waypoints
+        
+        return self.compute_dense_reward(obs=obs, action=action, info=info) / normalization_factor

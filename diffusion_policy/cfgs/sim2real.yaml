@@ -1,0 +1,51 @@
+dataset:
+  paths: []
+  validation_paths: []
+  camera_views: zed_sim_images
+  real_pairing: ''
+  sim_pairing: ''
+  validation_real_pairing: ''
+  validation_sim_pairing: ''
+  image_size: 96
+val_freq: 1   # validate every 5 training iterations
+method: "dp"
+dp:
+  shift_pad: 6
+  cond_unet:
+    kernel_size: 5
+    use_prop: 0
+  use_ddpm: 0
+  action_horizon: 2
+  prediction_horizon: 8
+  use_aux_loss: 0
+  aux_loss_weight: 0.1
+  distance_type: "contrastive_cosine"
+  use_additional_aug: 1
+num_epoch: 60
+epoch_len: 10000
+use_ema: 1
+ema_tau: 0.01
+batch_size: 64
+lr: 1e-4
+weight_decay: 1e-6
+cosine_schedule: 1
+lr_warm_up_steps: 500
+use_wb: 1
+save_dir: experiment_logs/DEFAULT
+
+eval_freq: 5  # Run evaluation every 5 epochs
+eval:
+  env_id: ""
+  control_mode: "pd_ee_delta_pose"
+  reward_mode: "dense"
+  randomize_init_config: true
+  obj_noise: 0.0
+  num_eval_envs: 1
+  show_camera: 0
+  num_episodes: 20  # Run 10 episodes per evaluation
+  freq: 5
+  max_len: 100  # Maximum steps per episode
+  use_tcp: false
+  save_trajectories: false
+
+use_pretrained: ''

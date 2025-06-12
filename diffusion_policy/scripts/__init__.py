@@ -1,0 +1,1 @@
+# Scripts package for diffusion policy training and evaluation 

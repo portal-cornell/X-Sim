@@ -4,7 +4,7 @@
 
 <div align="center">
 
-### [Prithwish Dan](https://pdan101.github.io/)<sup>\*</sup>, [Kushal Kedia](https://kushal2000.github.io/)<sup>\*</sup>, Angela Chao, Edward W. Duan, Maximus A. Pace, [Wei-Chiu Ma](https://www.cs.cornell.edu/~weichiu/), [Sanjiban Choudhury](https://sanjibanc.github.io/)
+### [Prithwish Dan](https://pdan101.github.io/)<sup>\*</sup>, [Kushal Kedia](https://kushal2000.github.io/)<sup>\*</sup>, Angela Chao, Edward W. Duan, Maximus A. Pace, <br>[Wei-Chiu Ma](https://www.cs.cornell.edu/~weichiu/), [Sanjiban Choudhury](https://sanjibanc.github.io/)
 
 <sup>*</sup> Equal Contribution<br/>
 Cornell University

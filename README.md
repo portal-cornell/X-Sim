@@ -19,10 +19,7 @@ Cornell University
 
 ---
 <div align="center">
-  <video width="800" controls>
-    <source src="docs/overview.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
+  <img src="docs/assets/introduction.png" alt="X-Sim Overview" width="800">
 </div>
 
 ## 📋 Table of Contents

@@ -63,7 +63,9 @@ git clone https://github.com/NVlabs/FoundationPose.git
 cd FoundationPose
 ```
 
-We followed [Env Setup Option 2: Conda (experimental)](https://github.com/NVlabs/FoundationPose?tab=readme-ov-file#env-setup-option-2-conda-experimental) for our setup.
+First follow the instructions to download the model weights in [Data Prepare](https://github.com/NVlabs/FoundationPose?tab=readme-ov-file#data-prepare). Feel free to download demo_data and play around with FoundationPose, we have provided our own sample data in the `sample_data` folder
+
+We then followed [Env Setup Option 2: Conda (experimental)](https://github.com/NVlabs/FoundationPose?tab=readme-ov-file#env-setup-option-2-conda-experimental) to set up the environment.
 
 **Common Setup Issues:**
 

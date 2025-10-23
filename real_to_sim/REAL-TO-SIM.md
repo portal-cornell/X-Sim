@@ -13,13 +13,44 @@ This pipeline converts real-world environments and objects into simulated repres
 The environment scanning phase captures the spatial layout and visual appearance of the real-world scene.
 
 **Tools:**
-- 2D Gaussian Splatting for efficient scene representation
+- [2D Gaussian Splatting](https://github.com/hbb1/2d-gaussian-splatting) for efficient scene representation
 - [Polycam](https://poly.cam/) for photogrammetric reconstruction
+- Mesh editing software, e.g. [MeshLab](https://www.meshlab.net) and [Blender](https://www.blender.org)
 
-**Process:**
-1. Capture multiple images or video of the environment from various angles
-2. Process the captured data to generate a 3D reconstruction
-3. Export the environment model for simulation integration
+**Generating the Mesh:**
+
+Begin by cloning the above 2D Gaussian Splatting repository and cd into it. Create a conda environment using `conda env create --file environment.yml`. Then:
+1. Capture many images of the environment from various angles
+2. Put all photos of the scene into a ./datasets/<SCENE_NAME>/input
+3. Activate your surfel_splatting conda environment
+4. Process your images into a COLMAP dataset using `python convert.py -s datasets/<SCENE_NAME>`
+5. Train your 2DG2 using `python train.py -s <path/to/COLMAP dataset>`. Take note of the name/ID of the model being trained
+6. To render the mesh, use `python render.py -m <path/to/trained model> -s <path/to/COLMAP dataset>` where <path/to/trained model> is the directory in ./outputs with the name/ID from training
+7. The output will be in ./output/<model_ID>/train/<step number, e.g. 30000>/fuse.ply
+
+**Post Processing:**
+
+We recommend first following the instructions at the following link to clean up your mesh in MeshLab: https://gist.github.com/shubhamwagh/0dc3b8173f662d39d4bf6f53d0f4d66b?permalink_comment_id=3721002
+
+The scale and position/orientation of the mesh will be arbitrary and should be adjusted in MeshLab or Blender. You can open the application and then import the fuse.ply file (as .ply).
+
+1. Begin by fixing the mesh scale. First, measure the full width of your scene in *meters*. Use the measure tool in Blender or MeshLab to measure the identical span. Since the orientation of the object is likely incorrect, it may be difficult to make sure the measure tool is not angled, so be careful.
+- In MeshLab, you can use the measure tool with the textures active, so you can verify the line being drawn is parallel to any grain or surface texture, and the measurements are directly from the points clicked in the mesh.
+- In Blender, you should snap the measure tool to the top of the table, otherwise you may end up measuring two points off of the surface.
+In either tool, use the scale feature to scale the entire object with the ratio of (real-world measurement) / (mesh measurement).
+
+2. For fixing the translation, we strongly advise to use Blender.
+Click on the point of the kitchen you want to be the origin of your mesh to set your cursor. Be as precise as possible, and zoom in to make sure your selection is accurate.
+Use Shift+S and select “Cursor to Selected.” This sets the origin of the object to your cursor location.
+
+3. To set the rotation, we again strongly recommend using Blender.
+In Blender, use the rotation tool. You will see several circles about the object’s origin (which should have been set with the above).
+Drag the circles one at a time to set the orientation about each axis. For each axis of rotation, click on the outer edge of the circle & drag until the object is aligned to the real-world axes. You will likely have to repeat this process across the 3 axes several times as they each get more precise.
+Check that the alignment is as close to perfect as can be by using 1, 3, 7, 9 on the NUMPAD. *Orthographic view* is necessary when verifying.
+
+4. To export the mesh, use Blender. BEFORE EXPORTING: Make sure you “Apply Transform” (Ctrl+A or Object ‣ Apply ‣ Location / Rotation / Scale / Rotation & Scale) to the mesh. This sets the rotation/translation effects to the mesh locally instead of globally, ensuring that when we set the pose in simulation, the inputs don’t override the transforms set in Blender.
+Make sure that the file you are viewing in Blender is textured: depending on how the object is loaded, this can be viewed by switching from object mode to Vertex Paint Mode.
+Export using File > Export As > .glb or .gltf. Before finalizing the export, make sure Color is checked/selected on the right menu. This should output a single .gltf file with texture embedded.
 
 ---
 

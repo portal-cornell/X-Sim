@@ -71,7 +71,7 @@ class LetterArrangeEnv(BaseEnv):
         self.randomize_robot_pos = randomize_robot_pos
         
         # Task parameters from configuration
-        self.robot_uids = self.task_config['robot_uids']
+        self.robot_uids = 'panda_ninja'
         self.obj_names = self.task_config['obj_names']
         self.obj_names = self.obj_names if isinstance(self.obj_names, list) else [self.obj_names]
         self.single_obj_manip_idx = self.task_config['manip_idx']

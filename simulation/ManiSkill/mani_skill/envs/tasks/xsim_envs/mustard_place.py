@@ -69,7 +69,7 @@ class MustardPlaceEnv(BaseEnv):
         self.randomize_robot_pos = randomize_robot_pos
         
         # Task parameters from configuration
-        self.robot_uids = self.task_config['robot_uids']
+        self.robot_uids = 'panda_ninja'
         self.obj_names = self.task_config['obj_names']
         self.obj_names = self.obj_names if isinstance(self.obj_names, list) else [self.obj_names]
         self.single_obj_manip_idx = self.task_config['manip_idx']
@@ -357,6 +357,7 @@ class MustardPlaceEnv(BaseEnv):
             # Set up kitchen position
             kitchen_xyz = torch.zeros((b, 3))
             kitchen_xyz[:, :3] = self.kitchen_to_robot_transform
+            kitchen_xyz[:, 0] -= 0.02
             
             # Set kitchen pose
             kitchen_rot = transforms3d.quaternions.axangle2quat(

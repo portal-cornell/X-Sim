@@ -53,6 +53,7 @@ class BCDatasetConfig:
     validation_real_pairing: str = '' 
     validation_sim_pairing: str = ''  
     robot_play_data: str = ''
+    only_start_state: bool = False
 
 @dataclass
 class RHYMEDatasetConfig:
@@ -163,6 +164,8 @@ class BCDataset:
 
             num_samples = min(100, len(sim_raw_episode))
             real_indices = np.linspace(0, len(sim_raw_episode) - 1, num_samples, dtype=int)
+            if self.cfg.only_start_state:
+                real_indices = np.array([0])
             # sim_indices = np.linspace(0, len(sim_raw_episode) - 1, num_samples, dtype=int)
 
             for real_idx in real_indices:
@@ -194,7 +197,6 @@ class BCDataset:
             success_msg = ""
             raw_episode = np.load(f, allow_pickle=True)["episode"]
             episode = []
-
             for t, timestep in enumerate(raw_episode):
                 # if timestep["mode"].value == ActMode.Waypoint.value:
                 #     continue
